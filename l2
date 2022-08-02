@@ -1,0 +1,419 @@
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
+using System.Text.RegularExpressions;
+
+namespace logikal
+{
+    public class Statement
+    {
+        public static Dictionary<string, int> Precedence = new Dictionary<string, int>() { ["¬"] = 4, ["&"] = 3, ["|"] = 2, ["->"] = 1, ["<->"] = 1 };
+        public static List<string> Combos = new List<string>();
+        public static bool StatementValid = true;
+        public static List<string> ParseToLogic(string str)
+        {
+            List<string> logic = new List<string>();
+            foreach (char c in str)
+            {
+                if (Char.IsLetter(c) || Precedence.ContainsKey(c.ToString()))
+                {
+                    logic.Add(c.ToString());
+                }
+                else
+                {
+                    switch (c)
+                    {
+                        case '!':
+                            logic.Add("¬");
+                            break;
+                        case '>':
+                            logic.Add("->");
+                            break;
+                        case '=':
+                            logic.Add("<->");
+                            break;
+                        default:
+                            StatementValid = false;
+                            break;
+                    }
+                }
+            }
+            return logic;
+        }
+        public static void AddToCombos(int[] arr, int n)
+        {
+            string comb = "";
+            for (int i = 0; i < n; i++)
+            {
+                comb += arr[i];
+            }
+            Combos.Add(comb);
+        }
+
+        // Function to generate all binary strings
+       public  static void generateAllBinaryStrings(int n,
+                                    int[] arr, int i)
+        {
+            if (i == n)
+            {
+                AddToCombos(arr, n);
+                return;
+            }
+
+            // First assign "0" at ith position
+            // and try for all other permutations
+            // for remaining positions
+            arr[i] = 0;
+            generateAllBinaryStrings(n, arr, i + 1);
+
+            // And then assign "1" at ith position
+            // and try for all other permutations
+            // for remaining positions
+            arr[i] = 1;
+            generateAllBinaryStrings(n, arr, i + 1);
+        }
+        public void ValidateAll(List<string> rpn)
+        {
+            Dictionary<string, bool> test = new Dictionary<string, bool>();
+
+            List<string> variables = new List<string>();
+            foreach (string token in rpn)
+            {
+                if (Regex.IsMatch(token, @"^[a-zA-Z]+$") && !variables.Contains(token)) 
+                {
+                    variables.Add(token);
+                    test.Add(token, true);
+                }
+            }
+            Validate(rpn,test);
+            if (!StatementValid)
+            {
+                Console.WriteLine("statement is invalid");
+            }
+            List<Dictionary<string,bool>> myDicts = new List<Dictionary<string, bool>>();
+            int[] arr = new int[variables.Count];
+
+            generateAllBinaryStrings(variables.Count, arr, 0);
+            foreach (string combo in Combos)
+            {
+                int idx = 0;
+                Dictionary<string, bool> temp = new Dictionary<string, bool>();
+                foreach (char c in combo)
+                {
+
+                    switch (c)
+                    {
+                        case '0':
+                            
+                            temp.Add(variables[idx], false);
+                            break;
+                        case '1':
+                            temp.Add(variables[idx], true);
+                            break;
+                    }
+                    idx++;
+                    
+                }
+                myDicts.Add(temp);
+            }
+            foreach (var dict in myDicts)
+            {
+                foreach (var kvp in dict)
+                {
+                    Console.Write(kvp);
+                }
+                Console.Write($"result: {Validate(rpn, dict)}");
+                Console.WriteLine("\n");
+            }
+            
+            /*List<Dictionary<string, bool>> combinations = new List<Dictionary<string, bool>>();
+            foreach (string comb in combo)
+            {
+                Dictionary<string, bool> tempDict = new Dictionary<string, bool>();
+                foreach (char c in comb)
+                {
+                    switch (c)
+                    {
+                        case '0':
+                            tempDict.Add(variables[variables.IndexOf(comb)], false);
+                            break;
+                        case '1':
+                            tempDict.Add(variables[variables.IndexOf(comb)], true);
+                            break;
+                    }
+                }
+                combinations.Add(tempDict);
+            }
+            foreach (var kvp in combinations)
+            {
+                Console.WriteLine(kvp);
+            }*/
+
+           
+
+
+        }
+        public static bool Decrease(ref int counter,int n)
+        {
+            for (int i = 0; i < n; i++)
+            {
+                counter--;
+                if (counter < 0)
+                {
+                    return false;
+                }
+            }
+            return true;
+
+        }
+        public static bool IsValidRPN(List<string> rpn)
+        {
+            int counter = 0;
+           foreach (string token in rpn)
+            {
+                if (Regex.IsMatch(token, @"^[a-zA-Z]+$"))
+                {
+                    counter++;
+                }
+                else if (Precedence.ContainsKey(token) && token != "¬")
+                {
+                    if (!Decrease(ref counter,2))
+                    {
+                        return false;
+                    }
+                    counter++;
+                }
+                else if (token == "¬")
+                {
+                    if (!Decrease( ref counter, 1))
+                    {
+                        return false;
+                    }
+                    counter++;
+                }
+            }
+            return (counter == 1);
+        }
+    
+
+        public bool Validate( List<string> rpn,  Dictionary<string,bool> variables)
+        {
+           
+            Stack<bool> boolStack = new Stack<bool>();
+            foreach (string token in rpn)
+            {
+                if (!Precedence.ContainsKey(token)) 
+                {
+                    boolStack.Push(variables[token]);
+                }
+                else
+                {
+
+                    try
+                    {
+                        if (token == "¬")
+                        {
+                            boolStack.Push(!boolStack.Pop());
+                        }
+                        else if (token == "|")
+                        {
+                            bool second = boolStack.Pop();
+                            bool first = boolStack.Pop();
+                            boolStack.Push(first | second);
+                        }
+                        else if (token == "&")
+                        {
+                            bool second = boolStack.Pop();
+                            bool first = boolStack.Pop();
+                            boolStack.Push(first & second);
+                        }
+                        else if (token == "->")
+                        {
+                            bool second = boolStack.Pop();
+                            bool first = boolStack.Pop();
+                            boolStack.Push(!first | second);
+                        }
+                        else if (token == "<->")
+                        {
+                            bool second = boolStack.Pop();
+                            bool first = boolStack.Pop();
+                            boolStack.Push(first == second);
+
+                        }
+                    } catch (InvalidOperationException)
+                    {
+                        StatementValid = false;
+                    }
+                  
+                }
+            }
+            return boolStack.FirstOrDefault();
+           //go through stack
+           //return result;
+
+        }
+        public List<string> RPN(List<string> tokens)
+        {
+            List<string> output = new List<string>();
+            Stack<string> operators = new Stack<string>();
+            foreach (string token in tokens)
+            {
+                if (!Precedence.ContainsKey(token) && token != "(" && token != ")")
+                {
+                    output.Add(token);
+                }
+                else
+                {
+                    if (token == "(")
+                    {
+                        operators.Push(token);
+                    }
+                    else if (token == ")")
+                    {
+                        while (operators.Count > 0)
+                        {
+                            string stackOperator = operators.Pop();
+                            if (stackOperator == "(")
+                            {
+                                break;
+                            }
+                            output.Add(stackOperator);
+                        }
+                    }
+                    else
+                    {
+                      while (operators.Count > 0 ) { 
+                            string stackOperator = operators.Peek();
+                            if (stackOperator == "(")
+                            {
+                                break;
+                            }
+                            if (Precedence[stackOperator]  > Precedence[token])
+                            {
+                                output.Add(operators.Pop());
+                            }
+                            else
+                            {
+                                break;
+                            }
+                        }
+                        operators.Push(token);
+                    }
+
+
+
+                }
+
+            }
+            foreach (string op in operators)
+            {
+                output.Add(op);
+            }
+
+            foreach (string sus in output)
+            {
+                Debug.WriteLine(sus);
+            }
+            return output;
+               
+            
+        }
+    }
+    static class Program
+    {
+
+        public static List<string> Input = new List<string>() { "p", "<->", "(", "q", "|", "p",")" };
+      
+        //public static List<string> Input = new List<string>() { "¬", "p", "|","q" };
+
+            /* bool value = Dummy;
+                List<string> opList = new List<string>();
+                List<string> vars = new List<string>();
+                foreach (string s in input)
+                {
+                    if (Precedence.ContainsKey(s))
+                    {
+                        opList.Add(s);
+                    }
+                    else
+                    {
+                        vars.Add(s);
+                    }
+
+                }
+                foreach (string op in opList)
+                {
+
+                    if (opList.Count > 1)
+                    {
+                        if (Precedence[op] > Precedence[opList[opList.IndexOf(op) + 1]]){
+                            int count = input.IndexOf(op + 1) - input.IndexOf(op);
+                            value = GenerateArgument(input.GetRange(input.IndexOf(op), count));
+                        }
+                    }
+                    else
+                    {
+                        if (vars.Count > 1)
+                        {
+                            return GetValue(op, vars[0], vars[1]);
+                        }
+                        else
+                        {
+                            if (op == "¬")
+                            {
+                                bool returnValue = vars.FirstOrDefault() == "p" ? P : Q;
+                                return !returnValue;
+                            }
+                            //else if (op == "(")
+                        }
+                    }
+                }
+                   */
+
+        static void Main(string[] args)
+        {
+           
+           /* string myString = String.Join("", Input);
+            string re = @"^(?=^[^()]*(?>[^()]+|\((?<DEPTH>)|\)(?<-DEPTH>))*(?(DEPTH)(?!))[^()]*$)[(]*[a-zA-Z]+[)]*((&|\||->|<->)+[(]*[a-zA-Z]+[)]*)*$";
+
+          
+            Debug.WriteLine(myString);
+            Match match = Regex.Match(myString,re);*/
+            /*if (match.Success)
+            {*/
+                Statement stat = new Statement();
+                List<string> RPN = stat.RPN(Input);
+                Console.WriteLine($"Is Valid RPN:{Statement.IsValidRPN(RPN)}");
+                foreach (string sus in RPN)
+                {
+                    Console.Write(sus);
+                }
+                string s = "";
+                foreach (string foo in Input)
+                {
+                    s += foo;
+                }
+                Console.WriteLine(s);
+                stat.ValidateAll(RPN);
+            Console.WriteLine("! for not, & for and, | for or, > for imply, = for equivalence(iff), brackets as usual");
+            List<string> myInput = Statement.ParseToLogic(Console.ReadLine());
+            if (Statement.StatementValid) { 
+            }
+            else
+            {
+                Console.WriteLine("statement invalid");
+            }
+            /*}
+
+            else
+            {
+                Console.WriteLine("no match found");
+            }*/
+
+
+
+
+        }
+    }
+}
